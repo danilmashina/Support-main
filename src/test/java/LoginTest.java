@@ -43,9 +43,12 @@ public class LoginTest {
         // Открываем страницу входа
         driver.get("https://helpdesk.ag-ife.com/site/login");
 
-        // Вводим логин и пароль
-        driver.findElement(By.id("LoginForm_username")).sendKeys("danil_ivanov");
-        driver.findElement(By.id("LoginForm_password")).sendKeys("passwOrd1@3");
+        // Вводим логин и пароль из переменных окружения
+        String username = System.getenv("HELPDESK_USERNAME");
+        String password = System.getenv("HELPDESK_PASSWORD");
+
+        driver.findElement(By.id("LoginForm_username")).sendKeys(username);
+        driver.findElement(By.id("LoginForm_password")).sendKeys(password);
 
         // Нажимаем кнопку входа
         wait.until(driver -> driver.findElement(By.cssSelector("button.btn-login"))).click();
@@ -131,8 +134,8 @@ public class LoginTest {
     private void sendEmailNotification(int newTicketCount) {
         // Настройки почтового сервера
         String host = "smtp.mail.ru"; // SMTP сервер
-        final String user = "d.ivanov@kodoev.ru"; // Ваш email
-        final String password = "e3KmunCP3Sf6actmN09e"; // Ваш пароль (проверьте, если требуется пароль приложения)
+        final String user = System.getenv("EMAIL_USER"); // Ваш email из переменной окружения
+        final String password = System.getenv("EMAIL_PASSWORD"); // Ваш пароль из переменной окружения
 
         // Получаем свойства системы
         Properties props = new Properties();
