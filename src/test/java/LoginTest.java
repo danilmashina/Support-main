@@ -143,7 +143,7 @@ public class LoginTest {
             protected PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(user, password);
             }
-        });
+        }); 
 
         try {
             // Создаем объект сообщения
