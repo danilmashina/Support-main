@@ -33,7 +33,7 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>LATEST</version> <!-- Используем переменную -->
+            <version>4.12.1</version> <!-- Используем переменную -->
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
