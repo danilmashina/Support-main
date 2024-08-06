@@ -5,6 +5,8 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  schedule:
+    - cron: '*/15 * * * *'  # Запуск каждые 15 минут
 
 jobs:
 
