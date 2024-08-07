@@ -1,12 +1,12 @@
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+package com.example;
+
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.Wait;
 
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
@@ -15,10 +15,10 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
 
-public class LoginTest {
+public class Main {
 
     private static WebDriver driver;
-    private static WebDriverWait wait;
+    private static Wait<WebDriver> wait;
     private static int lastKnownTicketCount = 0;
     private static String lastTicketDescription = ""; // Переменная для хранения последнего описания заявки
 
@@ -26,40 +26,66 @@ public class LoginTest {
     public static void setUp() {
         System.setProperty("webdriver.chrome.driver", "C:/chromedriver/chromedriver.exe");
         driver = new ChromeDriver();
-        wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        wait = new FluentWait<>(driver)
+                .withTimeout(Duration.ofSeconds(10))
+                .pollingEvery(Duration.ofSeconds(1))
+                .ignoring(NoSuchElementException.class);
     }
 
     @Test
     public void testLogin() {
-        if (driver == null) {
-            System.out.println("Driver is null. Initializing...");
-            setUp();
-        }
+        // Открываем страницу входа
+        driver.get("https://helpdesk.ag-ife.com/site/login");
 
+        // Вводим логин и пароль
+        driver.findElement(By.id("LoginForm_username")).sendKeys("danil_ivanov");
+        driver.findElement(By.id("LoginForm_password")).sendKeys("passwOrd1@3");
+
+        // Нажимаем кнопку входа
+        wait.until(driver -> driver.findElement(By.cssSelector("button.btn-login"))).click();
+
+        // Переходим на вкладку "Заявки"
+        wait.until(driver -> driver.findElement(By.xpath("//a[.//span[contains(text(),'Заявки')]]"))).click();
+
+        // Запоминаем начальное количество заявок
+        lastKnownTicketCount = getTicketCount();
+        lastTicketDescription = getFirstTicketDescription(); // Сохраняем начальное описание первой заявки
+
+        // Запускаем функцию обновления страницы и проверки новых заявок
+        refreshPageAndCheckNewTickets(60); // Обновляем страницу каждую минуту в течение 1 часа
+    }
+
+    private int getTicketCount() {
         try {
-            // Открываем страницу входа
-            driver.get("https://helpdesk.ag-ife.com/site/login");
+            // Ждем, пока таблица с заявками загрузится и станет видимой
+            wait.until(driver -> driver.findElement(By.id("request-grid-full2")));
 
-            // Вводим логин и пароль
-            driver.findElement(By.id("LoginForm_username")).sendKeys("danil_ivanov");
-            driver.findElement(By.id("LoginForm_password")).sendKeys("passwOrd1@3");
+            // Находим все строки таблицы
+            List<WebElement> ticketRows = driver.findElements(By.cssSelector("#request-grid-full2 tbody tr"));
 
-            // Нажимаем кнопку входа
-            wait.until(ExpectedConditions.elementToBeClickable(By.cssSelector("button.btn-login"))).click();
+            // Выводим количество найденных строк для отладки
+            System.out.println("Найдено заявок: " + ticketRows.size());
 
-            // Переходим на вкладку "Заявки"
-            wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//a[.//span[contains(text(),'Заявки')]]"))).click();
-
-            // Запоминаем начальное количество заявок
-            lastKnownTicketCount = getTicketCount();
-            lastTicketDescription = getFirstTicketDescription(); // Сохраняем начальное описание первой заявки
-
-            // Запускаем функцию обновления страницы и проверки новых заявок
-            refreshPageAndCheckNewTickets(60); // Обновляем страницу каждую минуту в течение 1 часа
+            // Возвращаем количество найденных строк
+            return ticketRows.size();
         } catch (Exception e) {
-            System.out.println("Ошибка при выполнении теста: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
+            System.out.println("Ошибка при подсчете заявок: " + e.getMessage());
+            return 0; // Возвращаем 0 в случае ошибки
+        }
+    }
+
+    private String getFirstTicketDescription() {
+        try {
+            // Ждем, пока таблица с заявками загрузится и станет видимой
+            wait.until(driver -> driver.findElement(By.id("request-grid-full2")));
+
+            // Находим первую строку таблицы
+            WebElement firstRow = driver.findElement(By.cssSelector("#request-grid-full2 tbody tr:nth-child(1)"));
+            // Получаем текст из второй ячейки (описание)
+            return firstRow.findElement(By.cssSelector("td:nth-child(2)")).getText();
+        } catch (Exception e) {
+            System.out.println("Ошибка при получении описания первой заявки: " + e.getMessage());
+            return ""; // Возвращаем пустую строку в случае ошибки
         }
     }
 
@@ -76,7 +102,7 @@ public class LoginTest {
                 System.out.println("Страница обновлена: " + new java.util.Date());
 
                 // Дождемся загрузки страницы после обновления
-                wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("request-grid-full2")));
+                wait.until(driver -> driver.findElement(By.id("request-grid-full2")));
 
                 // Проверяем наличие новых заявок
                 int currentTicketCount = getTicketCount();
@@ -96,55 +122,11 @@ public class LoginTest {
         }
     }
 
-    private int getTicketCount() {
-        try {
-            // Ждем, пока таблица с заявками загрузится и станет видимой
-            wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("request-grid-full2")));
-
-            // Находим все строки таблицы
-            List<WebElement> ticketRows = driver.findElements(By.cssSelector("#request-grid-full2 tbody tr"));
-
-            // Выводим количество найденных строк для отладки
-            System.out.println("Найдено заявок: " + ticketRows.size());
-
-            // Возвращаем количество найденных строк
-            return ticketRows.size();
-        } catch (Exception e) {
-            System.out.println("Ошибка при подсчете заявок: " + e.getMessage());
-            return 0; // Возвращаем 0 в случае ошибки
-        }
-    }
-
-    private String getFirstTicketDescription() {
-        try {
-            // Ждем, пока таблица с заявками загрузится и станет видимой
-            wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("request-grid-full2")));
-
-            // Находим первую строку таблицы
-            WebElement firstRow = driver.findElement(By.cssSelector("#request-grid-full2 tbody tr:nth-child(1)"));
-            // Получаем текст из второй ячейки (описание)
-            return firstRow.findElement(By.cssSelector("td:nth-child(2)")).getText();
-        } catch (Exception e) {
-            System.out.println("Ошибка при получении описания первой заявки: " + e.getMessage());
-            return ""; // Возвращаем пустую строку в случае ошибки
-        }
-    }
-
     private void sendEmailNotification(int newTicketCount) {
         // Настройки почтового сервера
         String host = "smtp.mail.ru"; // SMTP сервер
-        final String user = "d.ivanov@kodoev.ru"; // Ваш email
-        final String password = "e3KmunCP3Sf6actmN09e"; // Ваш пароль (проверьте, если требуется пароль приложения)
-
-        if (user == null || user.isEmpty() || password == null || password.isEmpty()) {
-            System.out.println("Email или пароль не установлены. Уведомление не отправлено.");
-            return;
-        }
-
-        System.out.println("Attempting to send email notification...");
-        System.out.println("SMTP Host: " + host);
-        System.out.println("User: " + user);
-        System.out.println("Password is set: " + (password != null && !password.isEmpty()));
+        final String user = System.getenv("d.ivanov@kodoev.ru"); // Ваш email из переменной окружения
+        final String password = System.getenv("e3KmunCP3Sf6actmN09e"); // Ваш пароль из переменной окружения
 
         // Получаем свойства системы
         Properties props = new Properties();
@@ -183,7 +165,6 @@ public class LoginTest {
     public static void tearDown() {
         if (driver != null) {
             driver.quit();
-            driver = null;
         }
     }
 }
