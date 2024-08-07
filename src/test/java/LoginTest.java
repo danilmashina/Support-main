@@ -21,7 +21,7 @@ public class LoginTest {
     private static WebDriver driver;
     private static Wait<WebDriver> wait;
     private static int lastKnownTicketCount = 0;
-    private static String lastTicketDescription = ""; // Переменная для хранения последнего описания заявки
+    private static String lastTicketDescription = "";
 
     @BeforeClass
     public static void setUp() {
@@ -35,64 +35,50 @@ public class LoginTest {
 
     @Test
     public void testLogin() {
-        // Открываем страницу входа
-        driver.get("https://helpdesk.ag-ife.com/site/login");
-
-        // Вводим логин и пароль
-        driver.findElement(By.id("LoginForm_username")).sendKeys("danil_ivanov");
-        driver.findElement(By.id("LoginForm_password")).sendKeys("passwOrd1@3");
-
-        // Нажимаем кнопку входа
-        wait.until(driver -> driver.findElement(By.cssSelector("button.btn-login"))).click();
-
-        // Переходим на вкладку "Заявки"
-        wait.until(driver -> driver.findElement(By.xpath("//a[.//span[contains(text(),'Заявки')]]"))).click();
-
-        // Запоминаем начальное количество заявок
-        lastKnownTicketCount = getTicketCount();
-        lastTicketDescription = getFirstTicketDescription(); // Сохраняем начальное описание первой заявки
-
-        // Запускаем функцию обновления страницы и проверки новых заявок
-        refreshPageAndCheckNewTickets(60); // Обновляем страницу каждую минуту в течение 1 часа
+        try {
+            driver.get("https://helpdesk.ag-ife.com/site/login");
+            driver.findElement(By.id("LoginForm_username")).sendKeys("danil_ivanov");
+            driver.findElement(By.id("LoginForm_password")).sendKeys("passwOrd1@3");
+            wait.until(driver -> driver.findElement(By.cssSelector("button.btn-login"))).click();
+            wait.until(driver -> driver.findElement(By.xpath("//a[.//span[contains(text(),'Заявки')]]"))).click();
+            
+            lastKnownTicketCount = getTicketCount();
+            lastTicketDescription = getFirstTicketDescription();
+            
+            refreshPageAndCheckNewTickets(60);
+        } catch (Exception e) {
+            System.out.println("Ошибка при выполнении теста: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     private int getTicketCount() {
         try {
-            // Ждем, пока таблица с заявками загрузится и станет видимой
             wait.until(driver -> driver.findElement(By.id("request-grid-full2")));
-
-            // Находим все строки таблицы
             List<WebElement> ticketRows = driver.findElements(By.cssSelector("#request-grid-full2 tbody tr"));
-
-            // Выводим количество найденных строк для отладки
             System.out.println("Найдено заявок: " + ticketRows.size());
-
-            // Возвращаем количество найденных строк
             return ticketRows.size();
         } catch (Exception e) {
             System.out.println("Ошибка при подсчете заявок: " + e.getMessage());
-            return 0; // Возвращаем 0 в случае ошибки
+            return 0;
         }
     }
 
     private String getFirstTicketDescription() {
         try {
-            // Ждем, пока таблица с заявками загрузится и станет видимой
             wait.until(driver -> driver.findElement(By.id("request-grid-full2")));
-
-            // Находим первую строку таблицы
             WebElement firstRow = driver.findElement(By.cssSelector("#request-grid-full2 tbody tr:nth-child(1)"));
-            // Получаем текст из второй ячейки (описание)
             return firstRow.findElement(By.cssSelector("td:nth-child(2)")).getText();
         } catch (Exception e) {
             System.out.println("Ошибка при получении описания первой заявки: " + e.getMessage());
-            return ""; // Возвращаем пустую строку в случае ошибки
+            return "";
         }
     }
 
     private void refreshPageAndCheckNewTickets(int totalDurationMinutes) {
-        long refreshInterval = 1 * 60 * 1000; // 1 минута в миллисекундах
-        long totalDuration = totalDurationMinutes * 60 * 1000; // Общая продолжительность в миллисекундах
+        long refreshInterval = 1 * 60 * 1000;
+        long totalDuration = totalDurationMinutes * 60 * 1000;
         long startTime = System.currentTimeMillis();
         long endTime = startTime + totalDuration;
 
@@ -102,21 +88,18 @@ public class LoginTest {
                 driver.navigate().refresh();
                 System.out.println("Страница обновлена: " + new java.util.Date());
 
-                // Дождемся загрузки страницы после обновления
                 wait.until(driver -> driver.findElement(By.id("request-grid-full2")));
 
-                // Проверяем наличие новых заявок
                 int currentTicketCount = getTicketCount();
-                String currentDescription = getFirstTicketDescription(); // Получаем текущее описание первой заявки
+                String currentDescription = getFirstTicketDescription();
 
-                // Проверяем, изменилось ли описание первой заявки
                 if (!currentDescription.equals(lastTicketDescription)) {
                     System.out.println("Описание первой заявки изменилось!");
-                    sendEmailNotification(currentTicketCount - lastKnownTicketCount); // Отправляем уведомление
-                    lastTicketDescription = currentDescription; // Обновляем последнее описание
+                    sendEmailNotification(currentTicketCount - lastKnownTicketCount);
+                    lastTicketDescription = currentDescription;
                 }
 
-                lastKnownTicketCount = currentTicketCount; // Обновляем количество заявок
+                lastKnownTicketCount = currentTicketCount;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -124,21 +107,26 @@ public class LoginTest {
     }
 
     private void sendEmailNotification(int newTicketCount) {
-        // Настройки почтового сервера
-        String host = "smtp.mail.ru"; // SMTP сервер
-        final String user = System.getenv("d.ivanov@kodoev.ru"); // Ваш email из переменной окружения
-        final String password = System.getenv("e3KmunCP3Sf6actmN09e"); // Ваш пароль из переменной окружения
+        String host = "smtp.mail.ru";
+        final String user = System.getenv("d.ivanov@kodoev.ru");
+        final String password = System.getenv("e3KmunCP3Sf6actmN09e");
 
-        // Получаем свойства системы
+        if (user == null || user.isEmpty() || password == null || password.isEmpty()) {
+            System.out.println("Email или пароль не установлены. Уведомление не отправлено.");
+            return;
+        }
+
+        System.out.println("Email user: " + user);
+        System.out.println("Email password: " + (password != null ? "set" : "not set"));
+
         Properties props = new Properties();
         props.put("mail.smtp.host", host);
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.port", "465"); // Порт для SSL
+        props.put("mail.smtp.port", "465");
         props.put("mail.smtp.socketFactory.port", "465");
         props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-        props.put("mail.smtp.starttls.enable", "true"); // Включаем TLS
+        props.put("mail.smtp.starttls.enable", "true");
 
-        // Получаем сессию
         Session session = Session.getInstance(props, new javax.mail.Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(user, password);
@@ -146,14 +134,12 @@ public class LoginTest {
         });
 
         try {
-            // Создаем объект сообщения
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(user));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(user)); // Отправляем на тот же email
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(user));
             message.setSubject("Новая заявка");
             message.setText("Helpdesk: " + newTicketCount + " новая заявка!");
 
-            // Отправляем сообщение
             Transport.send(message);
             System.out.println("Уведомление отправлено на почту: " + newTicketCount + " новая заявка.");
         } catch (MessagingException e) {
